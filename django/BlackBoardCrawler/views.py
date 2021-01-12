@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 import requests
 import json
 import os
@@ -188,7 +189,14 @@ def get_BbRouter(id, pw):
     print(f'{colorama.Fore.RED}[-] login failed')
     assert(False)
 
-def main(request):
+@csrf_exempt
+def test(request):
+    print("test")
+    return HttpResponse(status=200)
+
+#crsf 토큰 없애기 (django crsf 해제)
+@csrf_exempt
+def Crawler(request):
     workspace = os.path.join(os.getcwd(), 'Blackboard')
     if not os.path.exists(workspace):
         os.mkdir(workspace)
@@ -198,8 +206,12 @@ def main(request):
     print(f'{colorama.Fore.LIGHTBLACK_EX}Blackboard Downloader')
     # id = input('ID: ')
     # pw = input('PASSWORD: ')
-    id = request.POST['id']
-    pw = request.POST['password']
+    
+    Data = json.loads(request.body.decode("utf-8"))
+    id = Data['id']
+    pw = Data['password']
+    # id = request.POST['id']
+    # pw = request.POST['password']
 
     # React로부터 id, pw 받은 request 받기? 
 
