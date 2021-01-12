@@ -12,6 +12,7 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 
 WEB_DRIVER = 'C:\chromedriver.exe'
+#WEB_DRIVER = '/static/chromedriver.exe'
 
 class HYUBlackboard:
     def __init__(self, **kwargs):
