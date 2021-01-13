@@ -33,6 +33,19 @@ class HYUBlackboard:
         print(
             f'{colorama.Fore.GREEN}[+]{colorama.Fore.RESET} user_key: {colorama.Fore.CYAN}{self.user_key}')
 
+    def get_student_key(self):
+        url = self.url + '/ultra/course'
+        cookies = {'BbRouter': self.BbRouter}
+        rep = self.session.get(url, cookies=cookies, verify=False)
+        print(rep.text)
+        idx = rep.text.index('"studentId":') + 12
+        self.student_key = ''
+        while rep.text[idx] != '"' and rep.text[idx] != '?' and rep.text[idx] != ',':
+            self.student_key += rep.text[idx]
+            idx += 1
+        print(
+            f'{colorama.Fore.GREEN}[+]{colorama.Fore.RESET} student_key: {colorama.Fore.CYAN}{self.student_key}')
+
     def get_courses(self):
         url = self.url + \
             f'/learn/api/v1/users/{self.user_key}/memberships?expand=course.effectiveAvailability,course.permissions,courseRole&includeCount=true&limit=10000'
@@ -52,10 +65,10 @@ class HYUBlackboard:
         for course in self.courses:
             print(course, sep=' ')
 
-    def print_present(self):
+    def print_attendance(self):
         # cid = '_39722_1'
         def first():
-            cid = '_46942_1'
+            cid = '_46942_1' #이건 커개2 콕스 아이디임
             url = self.url + \
                 f'/learn/api/public/v1/lti/placements?courseId={cid}&type=Application' #_39722_1 => 이거 코스 아이디임. 현재 값은 씨융세2
             cookies = {'BbRouter': self.BbRouter}
@@ -64,6 +77,8 @@ class HYUBlackboard:
             # print(json.loads(rep.text)['results'] )
             name = str()
             url = str()
+
+            print("IN first, ",rep.text)
 
             for button in json.loads(rep.text)['results'] :
                 if button['id'] == '_17_1' :
@@ -75,11 +90,14 @@ class HYUBlackboard:
 
 #여기서부터 문제
         # url = first() + f'?showAll=true&custom_user_id={student_id}&custom_course_id='+'_46942_1'
-        url = 'https://learn.hanyang.ac.kr/webapps/bbgs-OnlineAttendance-BB5a998b8c44671/app/atdView?showAll=true&custom_user_id=' + "2016025105" + '&custom_course_id=' + "_46942_1"
+        # url = 'https://learn.hanyang.ac.kr/webapps/bbgs-OnlineAttendance-BB5a998b8c44671/app/atdView?showAll=true&custom_user_id=' + "171027089" + '&custom_course_id=' + "_46942_1"
+        url = first()
         print(url)
+        info = { "course_id" : "_46942_1"  , "user_id" : self.user_key}
         cookies = {'BbRouter': self.BbRouter}
-        rep = self.session.get(url, cookies=cookies, verify=False)
-        print(rep.text )
+        rep = self.session.get(url, params = info, cookies=cookies, verify=False)
+        # rep = self.session.post(url, data = info, cookies=cookies, verify=False)
+        print("IN print_attandance, ",rep.text )
         # print(json.loads(rep.text) )
 
 
@@ -109,14 +127,16 @@ def main():
     print(f'{colorama.Fore.LIGHTBLACK_EX}Blackboard Downloader')
     id = input('ID: ')
     pw = input('PASSWORD: ')
+    '
 
     cookie = get_BbRouter(id, pw)
 
     blackboard = HYUBlackboard(cookie)
     blackboard.get_user_key()
+    blackboard.get_student_key()
     blackboard.get_courses()
     blackboard.print_courses()
-    blackboard.print_present()
+    blackboard.print_attendance()
     
 
 
