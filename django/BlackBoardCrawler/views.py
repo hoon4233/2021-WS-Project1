@@ -1,5 +1,6 @@
 from django.shortcuts import render
 from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 import requests
 import json
 import os
@@ -9,8 +10,21 @@ import urllib3
 urllib3.disable_warnings()
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.utils import ChromeType
+'''
+안되는거 views.py 폴더에 넣었을 때 
+- './chromedriver.exe'  , 'chromedriver.exe' 
+- './BlackBoardCrawler/chromedriver.exe' 
+- '/home/ubuntu/2021-WS-Project1/django/BlackBoardCrawler/chromedriver.exe' 
+- os.path.join(os.path.dirname(os.path.abspath(__file__)),'chromedriver.exe') 
+https://haloaround.tistory.com/215
+'''
 
-WEB_DRIVER = 'C:\chromedriver.exe'
+#WEB_DRIVER = 'C:\chromedriver.exe'
+#WEB_DRIVER = os.path.join(os.path.dirname(os.path.abspath(__file__)),'chromedriver.exe')
+#WEB_DRIVER = 'chromedriver'
+WEB_DRIVER = r'/home/ubuntu/2021-WS-Project1/django/BlackBoardCrawler/chromedriver'
 
 class HYUBlackboard:
     def __init__(self, **kwargs):
@@ -175,6 +189,8 @@ def get_BbRouter(id, pw):
     option.add_argument('--disable-gpu')
     option.add_argument('lang=ko_KR')
     driver = webdriver.Chrome(WEB_DRIVER, chrome_options=option)
+    #driver = webdriver.Chrome(executable_path=ChromeDriverManager(chrome_type=ChromeType.GOOGLE).install() \
+    #        ,chrome_options=option)
     driver.get('https://learn.hanyang.ac.kr/ultra/institution-page')
     driver.implicitly_wait(10)
     driver.find_element_by_id('entry-login-custom').send_keys(Keys.ENTER)
@@ -188,7 +204,14 @@ def get_BbRouter(id, pw):
     print(f'{colorama.Fore.RED}[-] login failed')
     assert(False)
 
-def main(request):
+@csrf_exempt
+def test(request):
+    print("test")
+    return HttpResponse(status=200)
+
+#crsf 토큰 없애기 (django crsf 해제)
+@csrf_exempt
+def Crawler(request):
     workspace = os.path.join(os.getcwd(), 'Blackboard')
     if not os.path.exists(workspace):
         os.mkdir(workspace)
@@ -198,8 +221,12 @@ def main(request):
     print(f'{colorama.Fore.LIGHTBLACK_EX}Blackboard Downloader')
     # id = input('ID: ')
     # pw = input('PASSWORD: ')
-    id = request.POST['id']
-    pw = request.POST['password']
+    
+    Data = json.loads(request.body.decode("utf-8"))
+    id = Data['id']
+    pw = Data['password']
+    # id = request.POST['id']
+    # pw = request.POST['password']
 
     # React로부터 id, pw 받은 request 받기? 
 
