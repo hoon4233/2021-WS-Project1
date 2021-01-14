@@ -68,7 +68,7 @@ class HYUBlackboard:
     def print_attendance(self):
         # cid = '_39722_1'
         def first():
-            cid = '_46942_1' #이건 커개2 콕스 아이디임
+            cid = '_46942_1' #이건 커개2 코스 아이디임
             url = self.url + \
                 f'/learn/api/public/v1/lti/placements?courseId={cid}&type=Application' #_39722_1 => 이거 코스 아이디임. 현재 값은 씨융세2
             cookies = {'BbRouter': self.BbRouter}
