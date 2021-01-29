@@ -178,7 +178,7 @@ def Crawler(request):
     blackboard.get_user_key()
     blackboard.get_courses()
     result = blackboard.get_attendance()
-    json_info = json.dumps(result)
+    json_info = json.dumps(result, ensure_ascii=False)
 
     print("IN main, result :", result)
 
