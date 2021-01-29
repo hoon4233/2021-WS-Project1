@@ -15,7 +15,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from BlackBoardCrawler.views import Crawler ,test
+from BlackBoardCrawler.views import Crawler, test
 
 urlpatterns = [
     path('admin/', admin.site.urls),

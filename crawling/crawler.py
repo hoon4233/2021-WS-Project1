@@ -10,7 +10,8 @@ from selenium.webdriver.common.keys import Keys
 
 from bs4 import BeautifulSoup
 
-WEB_DRIVER = '/usr/local/bin/chromedriver'  
+WEB_DRIVER = 'C:\chromedriver.exe'
+#WEB_DRIVER = '/usr/local/bin/chromedriver'  
 option = webdriver.ChromeOptions()
 option.add_argument('headless')
 option.add_argument('--disable-gpu')
@@ -122,7 +123,7 @@ def get_BbRouter(id, pw):
     driver.find_element_by_id('uid').send_keys(id)
     driver.find_element_by_id('upw').send_keys(pw)
     driver.find_element_by_id('login_btn').click()
-    # driver.switch_to.alert.accept()
+    driver.switch_to.alert.accept()
     for cookie in driver.get_cookies():
         if cookie['name'] == 'BbRouter':
             return cookie['value']
