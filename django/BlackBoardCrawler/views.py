@@ -9,8 +9,9 @@ import urllib3
 urllib3.disable_warnings()
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from django.views.decorators.csrf import csrf_exempt
 
-WEB_DRIVER = 'C:\chromedriver.exe'
+WEB_DRIVER = './chromedriver'
 
 class HYUBlackboard:
     def __init__(self, **kwargs):
@@ -188,7 +189,11 @@ def get_BbRouter(id, pw):
     print(f'{colorama.Fore.RED}[-] login failed')
     assert(False)
 
-def main(request):
+def test(request):
+    return HttpResponse("성공", status=200)
+
+@csrf_exempt
+def crawling(request):
     workspace = os.path.join(os.getcwd(), 'Blackboard')
     if not os.path.exists(workspace):
         os.mkdir(workspace)
@@ -200,6 +205,7 @@ def main(request):
     # pw = input('PASSWORD: ')
     id = request.POST['id']
     pw = request.POST['password']
+    print(id,pw)
 
     # React로부터 id, pw 받은 request 받기? 
 
