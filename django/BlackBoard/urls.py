@@ -15,10 +15,10 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from BlackBoardCrawler.views import crawling,test
+from BlackBoardCrawler.views import Crawler, test
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('crawling', crawling),
-    path('test', test)
+    path('', Crawler),
+    path('test/', test),
 ]

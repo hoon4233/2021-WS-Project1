@@ -1,5 +1,11 @@
+from webdriver_manager.utils import ChromeType
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.common.keys import Keys
+from selenium import webdriver
 from django.shortcuts import render
 from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from bs4 import BeautifulSoup
 import requests
 import json
 import os
@@ -7,18 +13,30 @@ import sys
 import colorama
 import urllib3
 urllib3.disable_warnings()
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from django.views.decorators.csrf import csrf_exempt
+'''
+안되는거 views.py 폴더에 넣었을 때 
+- './chromedriver.exe'  , 'chromedriver.exe' 
+- './BlackBoardCrawler/chromedriver.exe' 
+- '/home/ubuntu/2021-WS-Project1/django/BlackBoardCrawler/chromedriver.exe' 
+- os.path.join(os.path.dirname(os.path.abspath(__file__)),'chromedriver.exe') 
+https://haloaround.tistory.com/215
+'''
 
-WEB_DRIVER = './chromedriver'
+#WEB_DRIVER = 'C:\chromedriver.exe'
+#WEB_DRIVER = os.path.join(os.path.dirname(os.path.abspath(__file__)),'chromedriver.exe')
+#WEB_DRIVER = 'chromedriver'
+WEB_DRIVER = r'/home/ubuntu/2021-WS-Project1/django/BlackBoardCrawler/chromedriver'
+option = webdriver.ChromeOptions()
+option.add_argument('headless')
+option.add_argument('--disable-gpu')
+option.add_argument('lang=ko_KR')
+driver = webdriver.Chrome(WEB_DRIVER, chrome_options=option)
+
 
 class HYUBlackboard:
-    def __init__(self, **kwargs):
-        self.BbRouter = kwargs['BbRouter']
-        self.path = kwargs['path']
+    def __init__(self, cookie):
+        self.BbRouter = cookie
         self.url = 'https://learn.hanyang.ac.kr'
-        self.api_url = 'https://api.hanyang.ac.kr'
         self.session = requests.Session()
 
     def get_user_key(self):
@@ -30,8 +48,6 @@ class HYUBlackboard:
         while rep.text[idx] != '"' and rep.text[idx] != '?':
             self.user_key += rep.text[idx]
             idx += 1
-        print(
-            f'{colorama.Fore.GREEN}[+]{colorama.Fore.RESET} user_key: {colorama.Fore.CYAN}{self.user_key}')
 
     def get_courses(self):
         url = self.url + \
@@ -52,132 +68,70 @@ class HYUBlackboard:
         for course in self.courses:
             print(course, sep=' ')
 
-    def get_contents(self, name, id):
-        def get_children(root_id):
-            url = self.url + \
-                f'/learn/api/v1/courses/{id}/contents/{root_id}/children?@view=Summary&expand=assignedGroups,selfEnrollmentGroups.group,gradebookCategory&limit=10000'
-            cookies = {'BbRouter': self.BbRouter}
-            rep = self.session.get(url, cookies=cookies, verify=False)
-            contents = json.loads(rep.text)['results']
-            return contents
-        invalid_chars = '\/:*?"<>|'
-        name = ''.join(c for c in name if c not in invalid_chars)
-        path = os.path.join(self.path, name)
-        if not os.path.exists(path):
-            os.mkdir(path)
-        st = []
-        trace = []
-        st.append(['ROOT', []])
-        cases = ['resource/x-bb-folder', 'resource/x-bb-file',
-                 'resource/x-bb-externallink']
-        while len(st) != 0:
-            item = st.pop()
-            parent = item[1]
-            for now in get_children(item[0]):
-                if 'contentDetail' not in now:
-                    print(
-                        f'{colorama.Fore.RED}[-] contentDetail does not exist\n{now}')
-                    continue
-                if 'resource/x-bb-folder' in now['contentDetail']:
-                    print(
-                        f'{colorama.Fore.GREEN}[+] Check folder: {colorama.Fore.RESET}{now["title"]}')
-                    now["title"] = ''.join(
-                        c for c in now["title"] if c not in invalid_chars)
-                    folders = parent + [now["title"]]
-                    st.append([now['id'], folders])
+    def get_attendance(self):
+        global driver
 
-                    target = path
-                    for i in folders:
-                        target = os.path.join(target, i)
-                    if not os.path.exists(target):
-                        os.mkdir(target)
-                        print(
-                            f'{colorama.Fore.GREEN}[+] Mkdir: {colorama.Fore.RESET}{now["title"]}')
-                elif 'resource/x-bb-file' in now['contentDetail']:
-                    print(
-                        f'{colorama.Fore.GREEN}[+] Check file: {colorama.Fore.RESET}{now["title"]}')
-                    # file download
-                    now["title"] = ''.join(
-                        c for c in now["title"] if c not in invalid_chars)
-                    print(f'title: {now["title"]}')
+        result = dict()
 
-                    target = path
-                    for i in parent:
-                        target = os.path.join(target, i)
-                    target = os.path.join(target, now['title'])
-                    if os.path.exists(target):
-                        print(
-                            f'{colorama.Fore.YELLOW}[*] Already exists: {colorama.Fore.RESET}{target}')
-                    else:
-                        self.download(self.url + now["contentDetail"]["resource/x-bb-file"]
-                                      ["file"]["permanentUrl"], target)
-                elif 'resource/x-bb-externallink' in now['contentDetail']:
-                    print(
-                        f'{colorama.Fore.GREEN}[+] Check video: {colorama.Fore.RESET}{now["title"]}')
-                    # video download
-                    cookies = {'BbRouter': self.BbRouter}
-                    rep = self.session.get(
-                        now["contentDetail"]["resource/x-bb-externallink"]["url"], cookies=cookies, verify=False)
-                    target = '<meta property="og:url" content="https://hycms.hanyang.ac.kr/em/'
-                    if target not in rep.text:
-                        print(f'{colorama.Fore.RED}[-] Invalid video')
-                        continue
-                    idx = rep.text.index(target) + len(target)
-                    result = ''
-                    while rep.text[idx] != '"' and rep.text[idx] != '?':
-                        result += rep.text[idx]
-                        idx += 1
-                    target = path
-                    for i in parent:
-                        target = os.path.join(target, i)
-                    sp = now['title'].split('/')
-                    if not len(sp) == 1:
-                        filename = sp[:-1]
-                    else:
-                        filename = now['title']
-                    filename = ''.join(c for c in filename if c not in invalid_chars) + '.mp4'
-                    target = os.path.join(target, filename)
-                    if os.path.exists(target):
-                        print(
-                            f'{colorama.Fore.YELLOW}[*] Already exists: {colorama.Fore.RESET}{target}')
-                    else:
-                        self.download(
-                            f'https://hycms.hanyang.ac.kr/contents/hanyang101/{result}/contents/media_files/mobile/ssmovie.mp4', target)
+        for course in self.courses:
+            result[course['name']] = []
 
-                else:
-                    print(
-                        f'{colorama.Fore.RED}[-] Unknown type resource:\n{now}')
+            url = f"https://learn.hanyang.ac.kr/webapps/blackboard/execute/blti/launchPlacement?blti_placement_id=_17_1&course_id={course['id']}&from_ultra=true"
 
-    def download(self, url, path):
-        print(
-            f'{colorama.Fore.GREEN}[+] Download: {colorama.Fore.RESET}\n{url}\n->\n{path}')
-        cookies = {'BbRouter': self.BbRouter}
-        with open(path, 'wb') as file:
-            rep = self.session.get(url, cookies=cookies,
-                                   verify=False, stream=True)
-            total = rep.headers.get("content-length")
-            if total == None:
-                file.write(rep.content)
-            else:
-                progress = 0
-                total = int(total)
-                for data in rep.iter_content(chunk_size=4096):
-                    progress += len(data)
-                    file.write(data)
-                    done = int(50 * progress / total)
-                    sys.stdout.write(
-                        f'\r{colorama.Fore.GREEN}[+] Progress: {colorama.Fore.RESET}[{"=" * done}{" " * (50-done)}] {int(progress / total * 100)}%')
-                    sys.stdout.flush()
-        print()
+            parent_window = driver.current_window_handle
+            driver.execute_script("window.open('" + url + "')")
+
+            all_windows = driver.window_handles
+            child_window = [
+                window for window in all_windows if window != parent_window][0]
+            driver.switch_to.window(child_window)
+
+            try:
+                driver.find_element_by_id(
+                    'listContainer_showAllButton').click()
+            except:
+                pass
+
+            html = driver.page_source
+            soup = BeautifulSoup(html, 'html.parser')
+            try:
+                tbody = soup.find('tbody', {'id': 'listContainer_databody'})
+            except:
+                # print("출석 정보가 없습니다.")
+                result[course['name']].append("출석 정보가 없습니다.")
+                continue
+
+            try:
+                contents = tbody.findAll(
+                    'span', {'class': 'table-data-cell-value'})
+            except:
+                # print("출석 정보가 없습니다.")
+                result[course['name']].append("출석 정보가 없습니다.")
+                continue
+
+            for idx in range(0, len(contents), 7):
+                tmp = dict()
+                tmp['week'] = contents[idx].text
+                tmp['content_name'] = contents[idx+1].text
+                tmp['learning_time'] = contents[idx+2].text
+                tmp['accreditation_time'] = contents[idx+3].text
+                tmp['content_time'] = contents[idx+4].text
+                tmp['progress_rate'] = contents[idx+5].text
+                tmp['attendance_state'] = contents[idx+6].text
+
+                result[course['name']].append(tmp)
+
+            driver.close()
+            driver.switch_to.window(parent_window)
+
+        return result
+
 
 def get_BbRouter(id, pw):
-    option = webdriver.ChromeOptions()
-    option.add_argument('headless')
-    option.add_argument('--disable-gpu')
-    option.add_argument('lang=ko_KR')
-    driver = webdriver.Chrome(WEB_DRIVER, chrome_options=option)
+    global driver
     driver.get('https://learn.hanyang.ac.kr/ultra/institution-page')
     driver.implicitly_wait(10)
+
     driver.find_element_by_id('entry-login-custom').send_keys(Keys.ENTER)
     driver.find_element_by_id('uid').send_keys(id)
     driver.find_element_by_id('upw').send_keys(pw)
@@ -189,6 +143,7 @@ def get_BbRouter(id, pw):
     print(f'{colorama.Fore.RED}[-] login failed')
     assert(False)
 
+<<<<<<< HEAD
 def test(request):
     return HttpResponse("성공", status=200)
 
@@ -197,88 +152,77 @@ def crawling(request):
     workspace = os.path.join(os.getcwd(), 'Blackboard')
     if not os.path.exists(workspace):
         os.mkdir(workspace)
+=======
+
+@csrf_exempt
+def test(request):
+    print("test")
+    return HttpResponse(status=200)
+
+# crsf 토큰 없애기 (django crsf 해제)
+
+
+@csrf_exempt
+def Crawler(request):
+    # workspace = os.path.join(os.getcwd(), 'Blackboard')
+    # if not os.path.exists(workspace):
+    #     os.mkdir(workspace)
+>>>>>>> aead5d755feaa31d3e7c15f7b30e48b1e731f011
 
     colorama.init(autoreset=True)
 
-    print(f'{colorama.Fore.LIGHTBLACK_EX}Blackboard Downloader')
+    print(f'{colorama.Fore.LIGHTBLACK_EX}Blackboard crawler start !')
     # id = input('ID: ')
     # pw = input('PASSWORD: ')
+<<<<<<< HEAD
     id = request.POST['id']
     pw = request.POST['password']
     print(id,pw)
+=======
+>>>>>>> aead5d755feaa31d3e7c15f7b30e48b1e731f011
 
-    # React로부터 id, pw 받은 request 받기? 
+    Data = json.loads(request.body.decode("utf-8"))
+    id = Data['id']
+    pw = Data['password']
+    # id = request.POST['id']
+    # pw = request.POST['password']
 
-    BbRouter = get_BbRouter(id, pw)
-    print(BbRouter)
+    # React로부터 id, pw 받은 request 받기?
 
-    blackboard = HYUBlackboard(BbRouter=BbRouter, path=workspace)
+    cookie = get_BbRouter(id, pw)
+
+    blackboard = HYUBlackboard(cookie)
     blackboard.get_user_key()
     blackboard.get_courses()
-    print(blackboard.courses)
+    result = blackboard.get_attendance()
+    json_info = json.dumps(result, ensure_ascii=False)
 
-    json_info = json.dumps(blackboard.courses)
+    print("IN main, result :", result)
+
     return HttpResponse(json_info, status=200)
     # targets = select_download(blackboard)
 
     # download_courses(blackboard, targets)
 
 
-def download_courses(blackboard, targets):
-    for target in targets:
-        print(
-            f'{colorama.Fore.GREEN}[+] Download {colorama.Fore.RESET}{target[0]}')
-        blackboard.get_contents(*target)
-        print(f'{colorama.Fore.GREEN}[+] Success')
+"""
+colorama.init(autoreset=True)
 
+print(f'{colorama.Fore.LIGHTBLACK_EX}Blackboard crawler start !')
+id = input('ID: ')
+pw = input('PASSWORD: ')
 
-def select_download(blackboard):
-    courses = {}
-    for course in blackboard.courses:
-        if not course['term'] in courses:
-            courses[course['term']] = []
-        courses[course['term']].append({'course': course, 'selected': False})
-    courses = sorted(courses.items())
-    while True:
-        start_code = print_list(courses)
-        select = int(input('> '))
-        if select <= 0 or select > start_code:
-            print(f'{colorama.Fore.RED}[-] Invalid input.')
-            input()
-            continue
-        if select == start_code:
-            break
-        code = 1
-        for lst in courses:
-            for course in lst[1]:
-                if code == select:
-                    course['selected'] = not course['selected']
-                code += 1
-    targets = []
-    for lst in courses:
-        for course in lst[1]:
-            if course['selected']:
-                targets.append(
-                    [course['course']['name'], course['course']['id']])
-    return targets
+cookie = get_BbRouter(id, pw)
 
+blackboard = HYUBlackboard(cookie)
+blackboard.get_user_key()
+blackboard.get_courses()
+result = blackboard.get_attendance()
 
-def print_list(courses):
-    code = 1
-    print(f'{colorama.Fore.YELLOW}[*] Please select courses to download')
-    for lst in courses:
-        print(f"{colorama.Fore.CYAN}[*] {lst[0]}")
-        for course in lst[1]:
-            if course['selected']:
-                print(
-                    f'{colorama.Fore.GREEN}[{code:>3}]   {course["course"]["name"]}')
-            else:
-                print(
-                    f'{colorama.Fore.RED}[{code:>3}]   {course["course"]["name"]}')
-            code += 1
-    print(f'\n{colorama.Fore.YELLOW}[{code:>3}] Start downloading')
-    return code
+print("IN main, result :",result)
 
+return result
+"""
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     Crawler(request)
